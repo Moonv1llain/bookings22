@@ -208,7 +208,7 @@ function WordReveal({ text, delay = 0, faded = false, italic = false }) {
 ───────────────────────────────────────────── */
 const JSONBIN_BIN_ID  = '69b06da9864efc355b5dfa3b'           // jsonbin.io bin ID
 const JSONBIN_API_KEY = '$2a$10$RjEN7.HUwh2vOW75dua3deRQRq7nFfTmJ6SW4ZUvzp125NjgPrdlu'   // X-Master-Key
-const NOTIFY_ENDPOINT = 'https://bookings22.vercel.app/api/notify'    // e.g. https://yoursite.vercel.app/api/notify
+const NOTIFY_ENDPOINT = 'https://bookings22.vercel.app/api/notify.cjs'    // e.g. https://yoursite.vercel.app/api/notify
 
 const INK   = '#f0ede8'
 const PAPER = '#0a0a0a'
