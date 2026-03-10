@@ -76,7 +76,6 @@ function BarbersPole({ isMobile }) {
       child.material = child.material.clone()
       child.material.roughness = 0.3
       child.material.metalness = 0.5
-      // Keep original colors — just tune material response
       if (child.name === 'Inner_Inner_Mat_0') {
         stripesRef.current = child
         child.material.roughness = 0.2
@@ -204,11 +203,12 @@ function WordReveal({ text, delay = 0, faded = false, italic = false }) {
 }
 
 /* ─────────────────────────────────────────────
-   CONFIG — fill these in before deploying
+   CONFIG
 ───────────────────────────────────────────── */
-const JSONBIN_BIN_ID  = '69b06da9864efc355b5dfa3b'           // jsonbin.io bin ID
-const JSONBIN_API_KEY = '$2a$10$RjEN7.HUwh2vOW75dua3deRQRq7nFfTmJ6SW4ZUvzp125NjgPrdlu'   // X-Master-Key
-const NOTIFY_ENDPOINT = 'https://bookings22.vercel.app/api/notify.cjs'    // e.g. https://yoursite.vercel.app/api/notify
+const JSONBIN_BIN_ID  = '69b06da9864efc355b5dfa3b'
+const JSONBIN_API_KEY = '$2a$10$RjEN7.HUwh2vOW75dua3deRQRq7nFfTmJ6SW4ZUvzp125NjgPrdlu'
+const RESEND_KEY      = 're_e5uVDof3_Lkr3566iuMYWuYByqJn8da9g'
+const BARBER_EMAIL    = 'moonvillain1@gmail.com'
 
 const INK   = '#f0ede8'
 const PAPER = '#0a0a0a'
@@ -224,6 +224,7 @@ const getBin = async () => {
   const j = await r.json()
   return j.record?.bookings || []
 }
+
 const putBin = async (bookings) => {
   await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
     method: 'PUT',
@@ -231,14 +232,25 @@ const putBin = async (bookings) => {
     body: JSON.stringify({ bookings })
   })
 }
+
 const notifyCustomer = async (booking, status) => {
   try {
-    await fetch(NOTIFY_ENDPOINT, {
+    const subjects = {
+      new:      `New booking - ${booking.service}`,
+      approved: 'Appointment confirmed',
+      denied:   'Update from Moon Barbershop',
+    }
+    const bodies = {
+      new:      `<p><b>${booking.name}</b> wants <b>${booking.service}</b><br>${booking.date} at ${booking.time}<br>Phone: ${booking.phone}</p>`,
+      approved: `<p>Hi ${booking.name}, your ${booking.service} on ${booking.date} at ${booking.time} is confirmed!</p>`,
+      denied:   `<p>Hi ${booking.name}, we cannot accommodate ${booking.date} at ${booking.time}. Please rebook.</p>`,
+    }
+    await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ booking, status })
+      headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'onboarding@resend.dev', to: BARBER_EMAIL, subject: subjects[status], html: bodies[status] })
     })
-  } catch(e) { console.warn('Twilio endpoint not configured:', e) }
+  } catch(e) { console.warn('Email error:', e) }
 }
 
 /* shared panel shell */
@@ -311,7 +323,7 @@ const Btn = ({ children, onClick, secondary, disabled }) => (
    BOOKING PANEL  (customer-facing)
 ───────────────────────────────────────────── */
 function BookingPanel({ open, onClose, isMobile }) {
-  const [step, setStep]       = useState(0) // 0=service 1=datetime 2=contact 3=done
+  const [step, setStep]       = useState(0)
   const [form, setForm]       = useState({ service:'', date:'', time:'', name:'', phone:'' })
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
@@ -322,7 +334,6 @@ function BookingPanel({ open, onClose, isMobile }) {
                  '12:00 PM','12:30 PM','1:00 PM','1:30 PM','2:00 PM','2:30 PM',
                  '3:00 PM','3:30 PM','4:00 PM','4:30 PM','5:00 PM','5:30 PM']
 
-  // Min date = today
   const today = new Date().toISOString().split('T')[0]
 
   const submit = async () => {
@@ -357,7 +368,6 @@ function BookingPanel({ open, onClose, isMobile }) {
 
       <div style={{ flex:1, overflowY:'auto', padding: isMobile ? '28px 24px' : '32px 38px' }}>
 
-        {/* Step indicator */}
         {step < 3 && (
           <div style={{ display:'flex', gap:'6px', marginBottom:'32px' }}>
             {['Service','Date & Time','Contact'].map((l,i) => (
@@ -369,7 +379,6 @@ function BookingPanel({ open, onClose, isMobile }) {
           </div>
         )}
 
-        {/* STEP 0 — Service */}
         {step === 0 && (
           <div>
             <div style={{ ...serif, fontSize:'22px', fontWeight:300, color:INK, marginBottom:'24px', letterSpacing:'-0.01em' }}>
@@ -378,8 +387,7 @@ function BookingPanel({ open, onClose, isMobile }) {
             {services.map(s => (
               <div key={s.id} data-hover onClick={()=>set('service', s.name)} style={{
                 display:'flex', justifyContent:'space-between', alignItems:'baseline',
-                padding:'14px 16px',
-                marginBottom:'4px',
+                padding:'14px 16px', marginBottom:'4px',
                 background: form.service === s.name ? INK : 'transparent',
                 border:`1px solid ${form.service === s.name ? INK : RULE}`,
                 cursor:'none', transition:'all 0.2s',
@@ -394,7 +402,6 @@ function BookingPanel({ open, onClose, isMobile }) {
           </div>
         )}
 
-        {/* STEP 1 — Date & Time */}
         {step === 1 && (
           <div>
             <div style={{ ...serif, fontSize:'22px', fontWeight:300, color:INK, marginBottom:'24px' }}>
@@ -421,13 +428,11 @@ function BookingPanel({ open, onClose, isMobile }) {
           </div>
         )}
 
-        {/* STEP 2 — Contact */}
         {step === 2 && (
           <div>
             <div style={{ ...serif, fontSize:'22px', fontWeight:300, color:INK, marginBottom:'24px' }}>
               Your details
             </div>
-            {/* Summary */}
             <div style={{ padding:'14px 16px', border:`1px solid ${RULE}`, marginBottom:'24px' }}>
               <div style={{ ...mono, fontSize:'7.5px', letterSpacing:'0.2em', color:INK, opacity:0.35, marginBottom:'8px', textTransform:'uppercase' }}>Booking Summary</div>
               <div style={{ ...serif, fontSize:'16px', color:INK, marginBottom:'4px' }}>{form.service}</div>
@@ -436,19 +441,18 @@ function BookingPanel({ open, onClose, isMobile }) {
             <Input label="Full Name" type="text" placeholder="Your name" value={form.name} onChange={e=>set('name', e.target.value)} />
             <Input label="Phone Number" type="tel" placeholder="+1 (805) 000-0000" value={form.phone} onChange={e=>set('phone', e.target.value)} />
             <div style={{ ...mono, fontSize:'8px', letterSpacing:'0.1em', color:INK, opacity:0.3, lineHeight:1.6, marginTop:'4px' }}>
-              You'll receive an SMS confirmation once the barber approves your booking.
+              You'll receive an email confirmation once the barber approves your booking.
             </div>
             {error && <div style={{ ...mono, fontSize:'9px', color:'#cc2200', marginTop:'12px', letterSpacing:'0.05em' }}>{error}</div>}
           </div>
         )}
 
-        {/* STEP 3 — Done */}
         {step === 3 && (
           <div style={{ textAlign:'center', paddingTop:'40px' }}>
             <div style={{ fontSize:'32px', marginBottom:'20px' }}>✦</div>
             <div style={{ ...serif, fontSize:'28px', fontWeight:600, fontStyle:'italic', color:INK, marginBottom:'12px' }}>You're on the list.</div>
             <div style={{ ...mono, fontSize:'9px', letterSpacing:'0.15em', color:INK, opacity:0.45, lineHeight:1.8 }}>
-              We'll text you at {form.phone}<br/>once your appointment is confirmed.
+              We'll be in touch once your appointment is confirmed.
             </div>
             <div style={{ marginTop:'40px' }}>
               <Btn onClick={()=>{ reset(); onClose() }}>Done</Btn>
@@ -457,7 +461,6 @@ function BookingPanel({ open, onClose, isMobile }) {
         )}
       </div>
 
-      {/* Navigation */}
       {step < 3 && (
         <div style={{ padding: isMobile ? '16px 24px 28px' : '18px 38px 36px', borderTop:`1px solid ${RULE}`, flexShrink:0, display:'flex', gap:'10px' }}>
           {step > 0 && <Btn secondary onClick={()=>setStep(s=>s-1)}>← Back</Btn>}
@@ -474,7 +477,7 @@ function BookingPanel({ open, onClose, isMobile }) {
 /* ─────────────────────────────────────────────
    DASHBOARD PANEL  (barber-facing)
 ───────────────────────────────────────────── */
-const BARBER_PIN = '1234'  // change this
+const BARBER_PIN = '1234'
 
 function DashboardPanel({ open, onClose, isMobile }) {
   const [authed, setAuthed]       = useState(false)
@@ -483,7 +486,7 @@ function DashboardPanel({ open, onClose, isMobile }) {
   const [bookings, setBookings]   = useState([])
   const [loading, setLoading]     = useState(false)
   const [filter, setFilter]       = useState('pending')
-  const [acting, setActing]       = useState(null) // id being acted on
+  const [acting, setActing]       = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -530,7 +533,6 @@ function DashboardPanel({ open, onClose, isMobile }) {
 
       <div style={{ flex:1, overflowY:'auto', padding: isMobile ? '28px 24px' : '32px 38px' }}>
 
-        {/* PIN gate */}
         {!authed ? (
           <div style={{ maxWidth:'260px' }}>
             <div style={{ ...serif, fontSize:'20px', fontWeight:300, color:INK, marginBottom:'24px' }}>Barber Access</div>
@@ -543,7 +545,6 @@ function DashboardPanel({ open, onClose, isMobile }) {
           </div>
         ) : (
           <>
-            {/* Tab filters */}
             <div style={{ display:'flex', gap:'0', marginBottom:'28px', border:`1px solid ${RULE}` }}>
               {['pending','approved','denied'].map(s => (
                 <div key={s} data-hover onClick={()=>setFilter(s)} style={{
@@ -559,7 +560,6 @@ function DashboardPanel({ open, onClose, isMobile }) {
               ))}
             </div>
 
-            {/* Refresh */}
             <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'16px' }}>
               <span data-hover onClick={load} style={{ ...mono, fontSize:'7.5px', letterSpacing:'0.2em', color:INK, opacity:0.3, cursor:'none', transition:'opacity 0.2s', textTransform:'uppercase' }}
                 onMouseEnter={e=>e.target.style.opacity='0.8'} onMouseLeave={e=>e.target.style.opacity='0.3'}>
@@ -567,14 +567,12 @@ function DashboardPanel({ open, onClose, isMobile }) {
               </span>
             </div>
 
-            {/* Booking cards */}
             {filtered.length === 0 ? (
               <div style={{ ...mono, fontSize:'9px', letterSpacing:'0.15em', color:INK, opacity:0.3, textAlign:'center', paddingTop:'40px', textTransform:'uppercase' }}>
                 No {filter} bookings
               </div>
             ) : filtered.sort((a,b)=>new Date(a.date+' '+a.time)-new Date(b.date+' '+b.time)).map(b => (
               <div key={b.id} style={{ border:`1px solid ${RULE}`, padding:'18px 20px', marginBottom:'10px' }}>
-                {/* Header row */}
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px' }}>
                   <div>
                     <div style={{ ...serif, fontSize:'19px', fontWeight:500, color:INK }}>{b.name}</div>
@@ -584,11 +582,9 @@ function DashboardPanel({ open, onClose, isMobile }) {
                     {fmtDate(b.date)}<br/>{b.time}
                   </div>
                 </div>
-                {/* Service */}
                 <div style={{ ...mono, fontSize:'9px', letterSpacing:'0.12em', color:INK, opacity:0.55, marginBottom:'14px', paddingBottom:'12px', borderBottom:`1px solid ${RULE}` }}>
                   {b.service}
                 </div>
-                {/* Actions */}
                 {b.status === 'pending' && (
                   <div style={{ display:'flex', gap:'8px' }}>
                     <Btn onClick={()=>act(b.id,'approved')} disabled={acting===b.id}>
@@ -633,7 +629,6 @@ function ServicesPanel({ open, onClose, onBook, isMobile }) {
         ? 'height 0.8s cubic-bezier(0.16,1,0.3,1)'
         : 'width 0.8s cubic-bezier(0.16,1,0.3,1)',
     }}>
-      {/* Header */}
       <div style={{
         padding: isMobile ? '24px 26px 20px' : '40px 38px 26px',
         borderBottom:'1px solid rgba(240,237,232,0.07)',
@@ -644,99 +639,53 @@ function ServicesPanel({ open, onClose, onBook, isMobile }) {
           <div style={{
             fontFamily:"'Bebas Neue', sans-serif",
             fontSize: isMobile ? '30px' : '40px',
-            fontWeight:400,
-            color:'#f0ede8',
-            letterSpacing:'0.06em',
-            lineHeight:1,
-          }}>
-            Services
-          </div>
+            fontWeight:400, color:'#f0ede8', letterSpacing:'0.06em', lineHeight:1,
+          }}>Services</div>
           <div style={{
-            fontFamily:"'DM Mono', monospace",
-            fontSize:'7.5px',
-            fontWeight:300,
-            letterSpacing:'0.3em',
-            color:'#f0ede8',
-            opacity:0.3,
-            marginTop:'9px',
-            textTransform:'uppercase',
-          }}>
-            {services.length} offerings · Oxnard, CA
-          </div>
+            fontFamily:"'DM Mono', monospace", fontSize:'7.5px', fontWeight:300,
+            letterSpacing:'0.3em', color:'#f0ede8', opacity:0.3, marginTop:'9px', textTransform:'uppercase',
+          }}>{services.length} offerings · Oxnard, CA</div>
         </div>
         <span data-hover onClick={onClose} style={{
-          fontFamily:"'DM Mono', monospace",
-          fontSize:'8px', letterSpacing:'0.22em',
-          color:'#f0ede8', opacity:0.28, cursor:'none',
-          transition:'opacity 0.2s', marginBottom:'5px',
+          fontFamily:"'DM Mono', monospace", fontSize:'8px', letterSpacing:'0.22em',
+          color:'#f0ede8', opacity:0.28, cursor:'none', transition:'opacity 0.2s', marginBottom:'5px',
         }}
           onMouseEnter={e=>e.target.style.opacity='1'}
           onMouseLeave={e=>e.target.style.opacity='0.28'}
         >ESC</span>
       </div>
 
-      {/* List */}
       <div style={{ flex:1, overflowY:'auto', padding: isMobile ? '4px 26px 0' : '4px 38px 0' }}>
         {services.map((s) => (
           <div key={s.id} data-hover style={{
             display:'flex', justifyContent:'space-between', alignItems:'baseline',
-            padding:'15px 0',
-            borderBottom:'1px solid rgba(240,237,232,0.06)',
+            padding:'15px 0', borderBottom:'1px solid rgba(240,237,232,0.06)',
             cursor:'none', transition:'opacity 0.2s',
           }}
             onMouseEnter={e=>e.currentTarget.style.opacity='0.35'}
             onMouseLeave={e=>e.currentTarget.style.opacity='1'}
           >
             <div style={{ display:'flex', alignItems:'baseline', gap:'16px' }}>
-              <span style={{
-                fontFamily:"'DM Mono', monospace",
-                fontSize:'7.5px', letterSpacing:'0.1em',
-                color:'#f0ede8', opacity:0.18, minWidth:'20px',
-              }}>{s.id}</span>
+              <span style={{ fontFamily:"'DM Mono', monospace", fontSize:'7.5px', letterSpacing:'0.1em', color:'#f0ede8', opacity:0.18, minWidth:'20px' }}>{s.id}</span>
               <div>
-                <div style={{
-                  fontFamily:"'Bebas Neue', sans-serif",
-                  fontSize: isMobile ? '20px' : '23px',
-                  fontWeight:400,
-                  color:'#f0ede8', letterSpacing:'0.06em',
-                }}>{s.name}</div>
-                <div style={{
-                  fontFamily:"'DM Mono', monospace",
-                  fontSize:'7.5px', letterSpacing:'0.16em',
-                  color:'#f0ede8', opacity:0.25, marginTop:'4px',
-                }}>{s.time}</div>
+                <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize: isMobile ? '20px' : '23px', fontWeight:400, color:'#f0ede8', letterSpacing:'0.06em' }}>{s.name}</div>
+                <div style={{ fontFamily:"'DM Mono', monospace", fontSize:'7.5px', letterSpacing:'0.16em', color:'#f0ede8', opacity:0.25, marginTop:'4px' }}>{s.time}</div>
               </div>
             </div>
-            <div style={{
-              fontFamily:"'Bebas Neue', sans-serif",
-              fontSize: isMobile ? '20px' : '23px',
-              fontWeight:400,
-              color:'#f0ede8', letterSpacing:'0.06em',
-            }}>{s.price}</div>
+            <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize: isMobile ? '20px' : '23px', fontWeight:400, color:'#f0ede8', letterSpacing:'0.06em' }}>{s.price}</div>
           </div>
         ))}
       </div>
 
-      {/* CTA */}
-      <div style={{
-        padding: isMobile ? '18px 26px 34px' : '22px 38px 40px',
-        borderTop:'1px solid rgba(240,237,232,0.07)',
-        flexShrink:0,
-      }}>
+      <div style={{ padding: isMobile ? '18px 26px 34px' : '22px 38px 40px', borderTop:'1px solid rgba(240,237,232,0.07)', flexShrink:0 }}>
         <button data-hover onClick={onBook} style={{
-          width:'100%', padding:'16px',
-          background:'#f0ede8',
-          border:'none',
-          color:'#0a0a0a',
-          fontFamily:"'DM Mono', monospace",
-          fontSize:'8.5px', letterSpacing:'0.32em', textTransform:'uppercase',
+          width:'100%', padding:'16px', background:'#f0ede8', border:'none', color:'#0a0a0a',
+          fontFamily:"'DM Mono', monospace", fontSize:'8.5px', letterSpacing:'0.32em', textTransform:'uppercase',
           cursor:'none', transition:'opacity 0.2s',
         }}
           onMouseEnter={e=>e.target.style.opacity='0.7'}
           onMouseLeave={e=>e.target.style.opacity='1'}
-        >
-          Book Appointment
-        </button>
+        >Book Appointment</button>
       </div>
     </div>
   )
@@ -761,63 +710,40 @@ export default function App() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=DM+Mono:wght@300;400&display=swap');
-
         *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; cursor:none !important; }
         body { background:#000000; overflow:hidden; }
-
         @keyframes blurRise {
           from { opacity:0; transform:translateY(60%) skewY(3deg); filter:blur(8px); }
           to   { opacity:1; transform:translateY(0) skewY(0deg);   filter:blur(0);  }
         }
-        @keyframes fadeIn {
-          from { opacity:0; } to { opacity:1; }
-        }
-        @keyframes lineGrow {
-          from { transform:scaleX(0); opacity:0; }
-          to   { transform:scaleX(1); opacity:1; }
-        }
-        @keyframes slideUp {
-          from { opacity:0; transform:translateY(16px); }
-          to   { opacity:1; transform:none; }
-        }
-
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes lineGrow { from { transform:scaleX(0); opacity:0; } to { transform:scaleX(1); opacity:1; } }
+        @keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
         ::-webkit-scrollbar { display:none; }
-
         .nav-item {
-          font-family:'DM Mono', monospace;
-          font-size:8px;
-          font-weight:300;
-          letter-spacing:0.28em;
-          text-transform:uppercase;
-          color:#f0ede8;
-          opacity:0.3;
-          cursor:none;
-          transition:opacity 0.2s;
+          font-family:'DM Mono', monospace; font-size:8px; font-weight:300;
+          letter-spacing:0.28em; text-transform:uppercase; color:#f0ede8;
+          opacity:0.3; cursor:none; transition:opacity 0.2s;
         }
         .nav-item:hover { opacity:1 !important; }
       `}</style>
 
       <Cursor />
 
-      {/* ── CANVAS ── */}
       <div style={{ position:'fixed', inset:0, zIndex:0 }}>
         <Canvas shadows={false} dpr={[1,2]} camera={{ position:[0,0,10], fov: isMobile ? 52 : 42 }}>
           <color attach="background" args={['#000000']} />
-
           <Environment preset="night" environmentIntensity={0.15} />
           <ambientLight intensity={0.08} />
           <spotLight position={[3, 6, 5]} intensity={3} color="#ffffff" angle={0.35} penumbra={1} />
           <spotLight position={[-4, 2, 3]} intensity={1} color="#6688bb" angle={0.5} penumbra={1} />
-
           <Suspense fallback={null}>
             <Particles count={isMobile ? 55 : 100} />
             <Float speed={0.85} rotationIntensity={0.2} floatIntensity={0.28}>
               <BarbersPole isMobile={isMobile} />
             </Float>
           </Suspense>
-
           <Rig isMobile={isMobile} />
-
           <EffectComposer disableNormalPass>
             <Bloom mipmapBlur intensity={0.6} luminanceThreshold={0.6} luminanceSmoothing={0.5} radius={0.7} />
             <Noise opacity={0.028} />
@@ -826,35 +752,19 @@ export default function App() {
         </Canvas>
       </div>
 
-      {/* ── GHOST BG — giant stacked number + city tag ── */}
       {!isMobile && (
-        <div style={{
-          position:'fixed', inset:0, zIndex:1, pointerEvents:'none', overflow:'hidden',
-        }}>
-          {/* Giant background number */}
+        <div style={{ position:'fixed', inset:0, zIndex:1, pointerEvents:'none', overflow:'hidden' }}>
           <div style={{
-            position:'absolute', right:'-2vw', top:'50%',
-            transform:'translateY(-52%)',
-            fontFamily:"'Bebas Neue', sans-serif",
-            fontSize:'clamp(300px,38vw,600px)',
-            fontWeight:400,
-            color:'transparent',
-            WebkitTextStroke:'1px rgba(240,237,232,0.035)',
-            letterSpacing:'-0.02em',
-            lineHeight:0.85,
-            userSelect:'none',
-            animation:'fadeIn 3s ease 1s both',
-            opacity:0,
-          }}>
-            805
-          </div>
+            position:'absolute', right:'-2vw', top:'50%', transform:'translateY(-52%)',
+            fontFamily:"'Bebas Neue', sans-serif", fontSize:'clamp(300px,38vw,600px)', fontWeight:400,
+            color:'transparent', WebkitTextStroke:'1px rgba(240,237,232,0.035)',
+            letterSpacing:'-0.02em', lineHeight:0.85, userSelect:'none',
+            animation:'fadeIn 3s ease 1s both', opacity:0,
+          }}>805</div>
         </div>
       )}
 
-      {/* ── UI LAYER ── */}
       <div style={{ position:'fixed', inset:0, zIndex:10, pointerEvents:'none' }}>
-
-        {/* TOP BAR — full-width with logo left, nav right */}
         <header style={{
           position:'absolute', top:0, left:0, right:0,
           display:'flex', justifyContent:'space-between', alignItems:'center',
@@ -864,226 +774,90 @@ export default function App() {
           pointerEvents:'auto',
           animation:'fadeIn 0.6s ease 0.1s both', opacity:0,
         }}>
-          {/* Logo block */}
           <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
-            <div style={{
-              fontFamily:"'Bebas Neue', sans-serif",
-              fontSize: isMobile ? '26px' : '30px',
-              color:'#f0ede8',
-              letterSpacing:'0.12em',
-              lineHeight:1,
-            }}>Moon</div>
+            <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize: isMobile ? '26px' : '30px', color:'#f0ede8', letterSpacing:'0.12em', lineHeight:1 }}>Moon</div>
+            {!isMobile && <div style={{ width:'1px', height:'18px', background:'rgba(240,237,232,0.15)' }}/>}
             {!isMobile && (
-              <div style={{
-                width:'1px', height:'18px',
-                background:'rgba(240,237,232,0.15)',
-              }}/>
-            )}
-            {!isMobile && (
-              <div style={{
-                fontFamily:"'DM Mono', monospace",
-                fontSize:'7px', fontWeight:300,
-                letterSpacing:'0.3em', textTransform:'uppercase',
-                color:'#f0ede8', opacity:0.28, lineHeight:1.5,
-              }}>
+              <div style={{ fontFamily:"'DM Mono', monospace", fontSize:'7px', fontWeight:300, letterSpacing:'0.3em', textTransform:'uppercase', color:'#f0ede8', opacity:0.28, lineHeight:1.5 }}>
                 Barbershop<br/>Est. 2019
               </div>
             )}
           </div>
 
-          {/* Right nav */}
           {!isMobile ? (
             <nav style={{ display:'flex', alignItems:'center', gap:'32px' }}>
               {['Gallery','About'].map(label => (
-                <span key={label} data-hover style={{
-                  fontFamily:"'DM Mono', monospace",
-                  fontSize:'8px', fontWeight:300,
-                  letterSpacing:'0.28em', textTransform:'uppercase',
-                  color:'#f0ede8', opacity:0.28, cursor:'none', transition:'opacity 0.2s',
-                }}
-                  onMouseEnter={e=>e.target.style.opacity='1'}
-                  onMouseLeave={e=>e.target.style.opacity='0.28'}
+                <span key={label} data-hover style={{ fontFamily:"'DM Mono', monospace", fontSize:'8px', fontWeight:300, letterSpacing:'0.28em', textTransform:'uppercase', color:'#f0ede8', opacity:0.28, cursor:'none', transition:'opacity 0.2s' }}
+                  onMouseEnter={e=>e.target.style.opacity='1'} onMouseLeave={e=>e.target.style.opacity='0.28'}
                 >{label}</span>
               ))}
               <div style={{ width:'1px', height:'16px', background:'rgba(240,237,232,0.12)' }} />
-              <span data-hover onClick={()=>setDrawerOpen(d=>!d)} style={{
-                fontFamily:"'DM Mono', monospace",
-                fontSize:'8px', fontWeight:300,
-                letterSpacing:'0.28em', textTransform:'uppercase',
-                color: drawerOpen ? '#ff3333' : '#f0ede8',
-                opacity: drawerOpen ? 1 : 0.28,
-                cursor:'none', transition:'all 0.2s',
-              }}
+              <span data-hover onClick={()=>setDrawerOpen(d=>!d)} style={{ fontFamily:"'DM Mono', monospace", fontSize:'8px', fontWeight:300, letterSpacing:'0.28em', textTransform:'uppercase', color: drawerOpen ? '#ff3333' : '#f0ede8', opacity: drawerOpen ? 1 : 0.28, cursor:'none', transition:'all 0.2s' }}
                 onMouseEnter={e=>{ e.target.style.opacity='1'; if(!drawerOpen) e.target.style.color='#f0ede8' }}
                 onMouseLeave={e=>{ if(!drawerOpen){ e.target.style.opacity='0.28'; e.target.style.color='#f0ede8' } }}
               >{drawerOpen ? '✕ Close' : 'Services'}</span>
             </nav>
           ) : (
-            <span data-hover onClick={()=>setDrawerOpen(d=>!d)} style={{
-              fontFamily:"'DM Mono', monospace",
-              fontSize:'8px', fontWeight:300,
-              letterSpacing:'0.28em', textTransform:'uppercase',
-              color:'#f0ede8', opacity:0.5, cursor:'none',
-            }}>
+            <span data-hover onClick={()=>setDrawerOpen(d=>!d)} style={{ fontFamily:"'DM Mono', monospace", fontSize:'8px', fontWeight:300, letterSpacing:'0.28em', textTransform:'uppercase', color:'#f0ede8', opacity:0.5, cursor:'none' }}>
               {drawerOpen ? '✕' : '≡'}
             </span>
           )}
         </header>
 
-        {/* HERO TEXT — left aligned, vertical rhythm */}
-        <div style={{
-          position:'absolute',
-          bottom: isMobile ? '80px' : '68px',
-          left: isMobile ? '20px' : '36px',
-          pointerEvents:'none',
-        }}>
-
-          {/* Location tag */}
-          <div style={{
-            display:'inline-flex', alignItems:'center', gap:'8px',
-            padding:'4px 10px',
-            border:'1px solid rgba(240,237,232,0.15)',
-            marginBottom:'20px',
-            animation:'fadeIn 0.8s ease 0.4s both', opacity:0,
-          }}>
+        <div style={{ position:'absolute', bottom: isMobile ? '80px' : '68px', left: isMobile ? '20px' : '36px', pointerEvents:'none' }}>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'4px 10px', border:'1px solid rgba(240,237,232,0.15)', marginBottom:'20px', animation:'fadeIn 0.8s ease 0.4s both', opacity:0 }}>
             <div style={{ width:'5px', height:'5px', borderRadius:'50%', background:'#ff3333' }} />
-            <span style={{
-              fontFamily:"'DM Mono', monospace",
-              fontSize:'7.5px', fontWeight:300,
-              letterSpacing:'0.3em', textTransform:'uppercase',
-              color:'#f0ede8', opacity:0.6,
-            }}>Oxnard, CA · Open Now</span>
+            <span style={{ fontFamily:"'DM Mono', monospace", fontSize:'7.5px', fontWeight:300, letterSpacing:'0.3em', textTransform:'uppercase', color:'#f0ede8', opacity:0.6 }}>Oxnard, CA · Open Now</span>
           </div>
 
-          {/* Headline */}
           <div style={{ lineHeight:0.88, marginBottom:'22px' }}>
             {[
-              { text:'THE', size: isMobile ? '60px' : '96px', weight:400, font:'Bebas Neue', color:'rgba(240,237,232,0.22)', delay:0.5 },
-              { text:'CULTURE', size: isMobile ? '80px' : '130px', weight:400, font:'Bebas Neue', color:'#f0ede8', delay:0.62 },
-              { text:'OF THE', size: isMobile ? '60px' : '96px', weight:400, font:'Bebas Neue', color:'rgba(240,237,232,0.22)', delay:0.74 },
-              { text:'CUT.', size: isMobile ? '80px' : '130px', weight:400, font:'Bebas Neue', color:'#ff3333', delay:0.88 },
-            ].map(({ text, size, weight, font, color, delay }) => (
+              { text:'THE',     size: isMobile ? '60px' : '96px',  color:'rgba(240,237,232,0.22)', delay:0.5 },
+              { text:'CULTURE', size: isMobile ? '80px' : '130px', color:'#f0ede8',                delay:0.62 },
+              { text:'OF THE',  size: isMobile ? '60px' : '96px',  color:'rgba(240,237,232,0.22)', delay:0.74 },
+              { text:'CUT.',    size: isMobile ? '80px' : '130px', color:'#ff3333',                delay:0.88 },
+            ].map(({ text, size, color, delay }) => (
               <div key={text} style={{ display:'block', overflow:'hidden' }}>
-                <div style={{
-                  fontFamily:`'${font}', sans-serif`,
-                  fontSize:size, fontWeight:weight,
-                  color, letterSpacing:'0.05em',
-                  opacity:0,
-                  animation:`blurRise 0.9s cubic-bezier(0.16,1,0.3,1) ${delay}s forwards`,
-                }}>{text}</div>
+                <div style={{ fontFamily:"'Bebas Neue', sans-serif", fontSize:size, fontWeight:400, color, letterSpacing:'0.05em', opacity:0, animation:`blurRise 0.9s cubic-bezier(0.16,1,0.3,1) ${delay}s forwards` }}>{text}</div>
               </div>
             ))}
           </div>
 
-          {/* Sub line */}
-          <div style={{
-            fontFamily:"'DM Mono', monospace",
-            fontSize: isMobile ? '9px' : '10px', fontWeight:300,
-            letterSpacing:'0.18em', lineHeight:2,
-            color:'#f0ede8', opacity:0,
-            animation:'fadeIn 1s ease 1.1s both',
-          }}>
+          <div style={{ fontFamily:"'DM Mono', monospace", fontSize: isMobile ? '9px' : '10px', fontWeight:300, letterSpacing:'0.18em', lineHeight:2, color:'#f0ede8', opacity:0, animation:'fadeIn 1s ease 1.1s both' }}>
             Walk-ins welcome · No appointment needed
           </div>
         </div>
 
-        {/* BOTTOM TICKER — scrolling text strip */}
         {!isMobile && (
-          <div style={{
-            position:'absolute', bottom:0, left:0, right:0,
-            height:'36px',
-            borderTop:'1px solid rgba(240,237,232,0.07)',
-            display:'flex', alignItems:'center',
-            overflow:'hidden',
-            animation:'fadeIn 1s ease 1.3s both', opacity:0,
-          }}>
-            <style>{`
-              @keyframes ticker {
-                from { transform:translateX(0) }
-                to   { transform:translateX(-50%) }
-              }
-            `}</style>
-            <div style={{
-              display:'flex', whiteSpace:'nowrap',
-              animation:'ticker 22s linear infinite',
-              fontFamily:"'DM Mono', monospace",
-              fontSize:'7.5px', fontWeight:300,
-              letterSpacing:'0.3em', textTransform:'uppercase',
-              color:'#f0ede8', opacity:0.18,
-            }}>
+          <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'36px', borderTop:'1px solid rgba(240,237,232,0.07)', display:'flex', alignItems:'center', overflow:'hidden', animation:'fadeIn 1s ease 1.3s both', opacity:0 }}>
+            <style>{`@keyframes ticker { from { transform:translateX(0) } to { transform:translateX(-50%) } }`}</style>
+            <div style={{ display:'flex', whiteSpace:'nowrap', animation:'ticker 22s linear infinite', fontFamily:"'DM Mono', monospace", fontSize:'7.5px', fontWeight:300, letterSpacing:'0.3em', textTransform:'uppercase', color:'#f0ede8', opacity:0.18 }}>
               {Array(8).fill('Moon Barbershop · Oxnard CA · Haircuts · Fades · Beard Trims · Walk-ins Welcome · \u00a0\u00a0\u00a0').join('')}
             </div>
           </div>
         )}
 
-        {/* BOTTOM RIGHT — services toggle (desktop) */}
         {!isMobile && (
-          <div style={{
-            position:'absolute',
-            bottom:'50px', right:'36px',
-            pointerEvents:'auto',
-            animation:'fadeIn 1s ease 1s both', opacity:0,
-          }}>
-            <span data-hover onClick={()=>setDrawerOpen(d=>!d)} style={{
-              fontFamily:"'DM Mono', monospace",
-              fontSize:'8px', fontWeight:300,
-              letterSpacing:'0.24em', textTransform:'uppercase',
-              color:'#f0ede8', opacity:0.28,
-              cursor:'none', transition:'opacity 0.2s',
-            }}
+          <div style={{ position:'absolute', bottom:'50px', right:'36px', pointerEvents:'auto', animation:'fadeIn 1s ease 1s both', opacity:0 }}>
+            <span data-hover onClick={()=>setDrawerOpen(d=>!d)} style={{ fontFamily:"'DM Mono', monospace", fontSize:'8px', fontWeight:300, letterSpacing:'0.24em', textTransform:'uppercase', color:'#f0ede8', opacity:0.28, cursor:'none', transition:'opacity 0.2s' }}
               onMouseEnter={e=>e.target.style.opacity='1'}
               onMouseLeave={e=>{ if(!drawerOpen) e.target.style.opacity='0.28' }}
-            >
-              {drawerOpen ? '← Close' : 'Services →'}
-            </span>
+            >{drawerOpen ? '← Close' : 'Services →'}</span>
           </div>
         )}
 
-        {/* VERTICAL SPINE — right edge */}
         {!isMobile && (
-          <div style={{
-            position:'absolute', right:'14px', top:'50%',
-            transform:'translateY(-50%) rotate(90deg)',
-            transformOrigin:'center',
-            fontFamily:"'DM Mono', monospace",
-            fontSize:'7px', fontWeight:300,
-            letterSpacing:'0.4em', textTransform:'uppercase',
-            color:'#f0ede8', opacity:0.07,
-            whiteSpace:'nowrap', pointerEvents:'none',
-            animation:'fadeIn 2s ease 1.4s both',
-          }}>
+          <div style={{ position:'absolute', right:'14px', top:'50%', transform:'translateY(-50%) rotate(90deg)', transformOrigin:'center', fontFamily:"'DM Mono', monospace", fontSize:'7px', fontWeight:300, letterSpacing:'0.4em', textTransform:'uppercase', color:'#f0ede8', opacity:0.07, whiteSpace:'nowrap', pointerEvents:'none', animation:'fadeIn 2s ease 1.4s both' }}>
             Moon Barbershop · Oxnard · California · Since 2019
           </div>
         )}
       </div>
 
-      {/* ── SERVICES PANEL ── */}
-      <ServicesPanel
-        open={drawerOpen}
-        onClose={()=>setDrawerOpen(false)}
-        onBook={()=>{ setDrawerOpen(false); setBookingOpen(true) }}
-        isMobile={isMobile}
-      />
+      <ServicesPanel open={drawerOpen} onClose={()=>setDrawerOpen(false)} onBook={()=>{ setDrawerOpen(false); setBookingOpen(true) }} isMobile={isMobile} />
+      <BookingPanel open={bookingOpen} onClose={()=>setBookingOpen(false)} isMobile={isMobile} />
+      <DashboardPanel open={dashOpen} onClose={()=>setDashOpen(false)} isMobile={isMobile} />
 
-      {/* ── BOOKING PANEL ── */}
-      <BookingPanel
-        open={bookingOpen}
-        onClose={()=>setBookingOpen(false)}
-        isMobile={isMobile}
-      />
-
-      {/* ── BARBER DASHBOARD ── */}
-      <DashboardPanel
-        open={dashOpen}
-        onClose={()=>setDashOpen(false)}
-        isMobile={isMobile}
-      />
-
-      {/* Secret barber access: double-click top-left corner */}
-      <div
-        style={{ position:'fixed', top:0, left:0, width:'80px', height:'80px', zIndex:200, cursor:'none' }}
-        onDoubleClick={()=>setDashOpen(true)}
-      />
+      <div style={{ position:'fixed', top:0, left:0, width:'80px', height:'80px', zIndex:200, cursor:'none' }} onDoubleClick={()=>setDashOpen(true)} />
     </>
   )
 }
