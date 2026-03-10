@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/notify.cjs": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "rewrites": [
     { "source": "/api/notify", "destination": "/api/notify.cjs" }
   ]
