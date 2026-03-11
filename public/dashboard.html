@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — Moon</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --cream: #f2ede6;
+      --black: #0e0e0e;
+      --red: #c0392b;
+      --gold: #b8952a;
+      --green: #27ae60;
+      --muted: #7a7670;
+      --border: #2a2a2a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--black); color: var(--cream); font-family: 'DM Mono', monospace; min-height: 100vh; }
+
+    #login-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; flex-direction: column; gap: 32px;
+    }
+    #login-screen h1 { font-family: 'Bebas Neue', sans-serif; font-size: 64px; letter-spacing: 4px; }
+    #login-screen p { font-size: 11px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+    .login-box { display: flex; flex-direction: column; gap: 12px; width: 320px; }
+    .login-box input {
+      background: #1a1a1a; border: 1px solid var(--border); color: var(--cream);
+      font-family: 'DM Mono', monospace; font-size: 14px; padding: 14px 16px;
+      letter-spacing: 2px; outline: none; transition: border-color 0.2s;
+    }
+    .login-box input:focus { border-color: var(--gold); }
+    .login-box button {
+      background: var(--cream); color: var(--black); border: none;
+      font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px;
+      padding: 14px; cursor: pointer; transition: background 0.2s;
+    }
+    .login-box button:hover { background: var(--gold); color: #fff; }
+    .login-error { font-size: 11px; color: var(--red); letter-spacing: 2px; text-align: center; display: none; }
+
+    #dashboard { display: none; }
+
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 24px 48px; border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 3px; }
+    .header-right { display: flex; align-items: center; gap: 24px; font-size: 11px; letter-spacing: 2px; color: var(--muted); }
+
+    .tab-nav { display: flex; border-bottom: 1px solid var(--border); }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px;
+      letter-spacing: 3px; padding: 20px 48px; cursor: pointer;
+      text-transform: uppercase; transition: all 0.15s; margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: var(--cream); }
+    .tab-btn.active { color: var(--cream); border-bottom-color: var(--gold); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--border); }
+    .stat { padding: 32px 48px; border-right: 1px solid var(--border); }
+    .stat:last-child { border-right: none; }
+    .stat-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 48px; letter-spacing: 2px; }
+    .stat-value.gold { color: var(--gold); }
+    .stat-value.red { color: var(--red); }
+    .stat-value.green { color: var(--green); }
+
+    .filters { display: flex; padding: 24px 48px; border-bottom: 1px solid var(--border); }
+    .filter-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px;
+      padding: 10px 20px; cursor: pointer; text-transform: uppercase;
+      margin-right: -1px; transition: all 0.15s;
+    }
+    .filter-btn:hover { color: var(--cream); border-color: #555; }
+    .filter-btn.active { background: var(--cream); color: var(--black); border-color: var(--cream); z-index: 1; }
+
+    .bookings-container { padding: 32px 48px; }
+    .loading { text-align: center; padding: 80px; color: var(--muted); font-size: 11px; letter-spacing: 3px; }
+    .empty { text-align: center; padding: 80px; color: var(--muted); }
+    .empty p { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; }
+
+    .booking-card {
+      border: 1px solid var(--border); margin-bottom: 12px;
+      display: grid; grid-template-columns: 120px 1fr 1fr 1fr auto;
+      align-items: center; gap: 24px; padding: 20px 24px; transition: border-color 0.2s;
+    }
+    .booking-card:hover { border-color: #444; }
+    .booking-card.confirmed { border-left: 3px solid var(--green); }
+    .booking-card.cancelled { border-left: 3px solid var(--red); opacity: 0.5; }
+    .booking-card.completed { border-left: 3px solid var(--muted); opacity: 0.6; }
+    .booking-card.pending { border-left: 3px solid var(--gold); }
+
+    .status-badge { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; padding: 4px 10px; border-radius: 2px; }
+    .status-badge.pending { background: rgba(184,149,42,0.15); color: var(--gold); }
+    .status-badge.confirmed { background: rgba(39,174,96,0.15); color: var(--green); }
+    .status-badge.cancelled { background: rgba(192,57,43,0.15); color: var(--red); }
+    .status-badge.completed { background: rgba(122,118,112,0.15); color: var(--muted); }
+
+    .booking-name { font-size: 14px; letter-spacing: 1px; }
+    .booking-meta { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+    .booking-service { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; }
+    .booking-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .action-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px;
+      padding: 6px 12px; cursor: pointer; text-transform: uppercase;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .action-btn:hover { color: var(--cream); border-color: #555; }
+    .action-btn.confirm:hover { color: var(--green); border-color: var(--green); }
+    .action-btn.cancel:hover { color: var(--red); border-color: var(--red); }
+    .action-btn.complete:hover { color: var(--gold); border-color: var(--gold); }
+    .action-btn.delete:hover { color: var(--red); border-color: var(--red); }
+    .action-btn.reschedule:hover { color: #7eb8f7; border-color: #7eb8f7; }
+
+    .refresh-btn, #logout-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px;
+      padding: 8px 16px; cursor: pointer; text-transform: uppercase; transition: all 0.2s;
+    }
+    .refresh-btn:hover { color: var(--cream); border-color: #555; }
+    #logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── RESCHEDULE MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #111; border: 1px solid var(--border); padding: 48px; width: 440px; max-width: 95vw; }
+    .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 3px; margin-bottom: 8px; }
+    .modal-subtitle { font-size: 11px; color: var(--muted); letter-spacing: 2px; margin-bottom: 32px; }
+    .modal-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .modal-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); }
+    .modal-input {
+      background: #1a1a1a; border: 1px solid var(--border); color: var(--cream);
+      font-family: 'DM Mono', monospace; font-size: 14px; padding: 12px 16px;
+      outline: none; transition: border-color 0.2s;
+    }
+    .modal-input:focus { border-color: var(--gold); }
+    .modal-actions { display: flex; gap: 12px; margin-top: 32px; }
+    .modal-confirm {
+      background: var(--cream); color: var(--black); border: none;
+      font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px;
+      padding: 14px 32px; cursor: pointer; transition: background 0.2s; flex: 1;
+    }
+    .modal-confirm:hover { background: var(--gold); color: #fff; }
+    .modal-cancel {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px;
+      padding: 14px 24px; cursor: pointer; text-transform: uppercase; transition: all 0.15s;
+    }
+    .modal-cancel:hover { color: var(--red); border-color: var(--red); }
+
+    /* ── REMINDER BANNER ── */
+    #reminder-banner {
+      display: none; background: rgba(184,149,42,0.1); border-bottom: 1px solid rgba(184,149,42,0.3);
+      padding: 14px 48px; font-size: 11px; letter-spacing: 2px; color: var(--gold);
+    }
+
+    /* ── CLIENTS TAB ── */
+    .clients-container { padding: 32px 48px; }
+    .clients-stats { display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid var(--border); margin-bottom: 48px; }
+    .clients-stat { padding: 28px 32px; border-right: 1px solid var(--border); }
+    .clients-stat:last-child { border-right: none; }
+    .clients-stat-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .clients-stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 44px; letter-spacing: 2px; color: var(--gold); }
+    .clients-stat-value.white { color: var(--cream); }
+    .clients-stat-value.green { color: var(--green); }
+    .clients-search-row { display: flex; margin-bottom: 32px; }
+    .clients-search {
+      background: #1a1a1a; border: 1px solid var(--border); color: var(--cream);
+      font-family: 'DM Mono', monospace; font-size: 13px; padding: 12px 20px;
+      outline: none; flex: 1; transition: border-color 0.2s;
+    }
+    .clients-search:focus { border-color: var(--gold); }
+    .clients-search::placeholder { color: #333; }
+    .client-table { width: 100%; border-collapse: collapse; }
+    .client-table th {
+      font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted);
+      text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); background: #0a0a0a;
+    }
+    .client-table td { font-size: 12px; letter-spacing: 1px; padding: 16px 16px; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
+    .client-table tr:hover td { background: #111; }
+    .client-name-cell { font-size: 14px; letter-spacing: 1px; }
+    .client-email-cell { color: var(--muted); font-size: 11px; }
+    .client-visits { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--cream); }
+    .client-spent { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--gold); }
+    .client-last { color: var(--muted); font-size: 11px; }
+    .client-badge { font-size: 9px; letter-spacing: 2px; padding: 3px 10px; text-transform: uppercase; border-radius: 2px; }
+    .client-badge.regular { background: rgba(39,174,96,0.15); color: var(--green); }
+    .client-badge.new { background: rgba(184,149,42,0.12); color: var(--gold); }
+    .client-badge.vip { background: rgba(192,57,43,0.12); color: #e07060; }
+
+    /* ── SCHEDULE ── */
+    .schedule-container { padding: 48px; }
+    .schedule-section-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 3px;
+      margin-bottom: 32px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    .schedule-grid { display: grid; grid-template-columns: 1fr; gap: 0; margin-bottom: 32px; border: 1px solid var(--border); }
+    .schedule-row {
+      display: grid; grid-template-columns: 140px 80px 1fr 1fr;
+      align-items: center; gap: 24px; padding: 20px 24px;
+      border-bottom: 1px solid var(--border); transition: background 0.15s;
+    }
+    .schedule-row:last-child { border-bottom: none; }
+    .schedule-row:hover { background: #111; }
+    .schedule-row.closed-day { opacity: 0.5; }
+    .schedule-day-name { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; }
+    .toggle-switch { position: relative; width: 44px; height: 24px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #333; border-radius: 24px; transition: 0.2s; }
+    .toggle-slider:before {
+      content: ''; position: absolute; width: 18px; height: 18px;
+      left: 3px; top: 3px; background: var(--muted); border-radius: 50%; transition: 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: rgba(39,174,96,0.3); }
+    .toggle-switch input:checked + .toggle-slider:before { background: var(--green); transform: translateX(20px); }
+    .time-input-group { display: flex; align-items: center; gap: 12px; }
+    .time-input-group label { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+    .time-input {
+      background: #1a1a1a; border: 1px solid var(--border); color: var(--cream);
+      font-family: 'DM Mono', monospace; font-size: 13px; padding: 8px 12px;
+      outline: none; transition: border-color 0.2s; width: 110px;
+    }
+    .time-input:focus { border-color: var(--gold); }
+    .time-input:disabled { opacity: 0.3; cursor: not-allowed; }
+    .save-schedule-btn {
+      background: var(--cream); color: var(--black); border: none;
+      font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px;
+      padding: 16px 48px; cursor: pointer; transition: background 0.2s; margin-bottom: 16px;
+    }
+    .save-schedule-btn:hover { background: var(--gold); color: #fff; }
+    .schedule-msg { font-size: 11px; letter-spacing: 2px; margin-bottom: 48px; min-height: 20px; }
+    .schedule-msg.success { color: var(--green); }
+    .schedule-msg.error { color: var(--red); }
+    .holidays-grid, .blocked-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; min-height: 20px; }
+    .holiday-tag, .blocked-tag {
+      display: flex; align-items: center; gap: 10px; background: #1a1a1a;
+      border: 1px solid var(--border); padding: 10px 16px; font-size: 12px; letter-spacing: 1px;
+    }
+    .blocked-tag { border-color: #3a2a2a; }
+    .holiday-remove, .blocked-remove {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 16px; line-height: 1; padding: 0; transition: color 0.15s;
+    }
+    .holiday-remove:hover, .blocked-remove:hover { color: var(--red); }
+    .add-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .add-input {
+      background: #1a1a1a; border: 1px solid var(--border); color: var(--cream);
+      font-family: 'DM Mono', monospace; font-size: 13px; padding: 12px 16px;
+      outline: none; transition: border-color 0.2s;
+    }
+    .add-input:focus { border-color: var(--gold); }
+    .add-input-label { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 6px; }
+    .add-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px;
+      padding: 12px 24px; cursor: pointer; text-transform: uppercase; transition: all 0.15s;
+    }
+    .add-btn:hover { color: var(--cream); border-color: #555; }
+    .section-gap { margin-top: 64px; }
+
+    /* ── REVENUE ── */
+    .revenue-container { padding: 48px; }
+    .revenue-stats { display: grid; grid-template-columns: repeat(4,1fr); border: 1px solid var(--border); margin-bottom: 48px; }
+    .revenue-stat { padding: 32px; border-right: 1px solid var(--border); }
+    .revenue-stat:last-child { border-right: none; }
+    .revenue-stat-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .revenue-stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 44px; letter-spacing: 2px; color: var(--gold); }
+    .revenue-stat-value.white { color: var(--cream); }
+    .revenue-stat-value.green { color: var(--green); }
+    .revenue-section-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 3px;
+      margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); color: var(--cream);
+    }
+    .chart-wrap { margin-bottom: 56px; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 160px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    .bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; gap: 6px; }
+    .bar-fill { width: 100%; background: var(--gold); opacity: 0.8; transition: height 0.4s ease, opacity 0.2s; min-height: 2px; position: relative; }
+    .bar-fill:hover { opacity: 1; }
+    .bar-fill .bar-tooltip {
+      display: none; position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+      background: #1a1a1a; border: 1px solid var(--border); color: var(--gold);
+      font-size: 10px; letter-spacing: 1px; padding: 4px 8px; white-space: nowrap; z-index: 10;
+    }
+    .bar-fill:hover .bar-tooltip { display: block; }
+    .bar-label { font-size: 9px; letter-spacing: 1px; color: var(--muted); text-align: center; white-space: nowrap; }
+    .bar-labels { display: flex; gap: 8px; }
+    .bar-labels .bar-col { height: auto; }
+    .service-breakdown { margin-bottom: 56px; }
+    .breakdown-row {
+      display: grid; grid-template-columns: 1fr 80px 80px 100px;
+      align-items: center; gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--border);
+    }
+    .breakdown-row:last-child { border-bottom: none; }
+    .breakdown-service { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; }
+    .breakdown-count { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-align: right; }
+    .breakdown-amount { font-size: 14px; color: var(--gold); letter-spacing: 1px; text-align: right; }
+    .breakdown-bar-wrap { height: 4px; background: #1a1a1a; border-radius: 2px; overflow: hidden; }
+    .breakdown-bar { height: 100%; background: var(--gold); opacity: 0.7; border-radius: 2px; }
+    .revenue-log-table { width: 100%; border-collapse: collapse; }
+    .revenue-log-table th {
+      font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted);
+      text-align: left; padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .revenue-log-table td { font-size: 12px; letter-spacing: 1px; padding: 14px 0; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
+    .revenue-log-table td.amount { color: var(--gold); font-size: 14px; }
+    .revenue-log-table td.service-cell { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 2px; }
+    .revenue-log-table td.muted { color: var(--muted); font-size: 11px; }
+    .revenue-empty { text-align: center; padding: 80px; color: var(--muted); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; }
+    .rev-period-filter { display: flex; gap: 0; margin-bottom: 32px; }
+    .rev-period-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px;
+      padding: 10px 24px; cursor: pointer; text-transform: uppercase; margin-right: -1px; transition: all 0.15s;
+    }
+    .rev-period-btn:hover { color: var(--cream); }
+    .rev-period-btn.active { background: var(--gold); color: var(--black); border-color: var(--gold); z-index: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- ── RESCHEDULE MODAL ── -->
+  <div class="modal-overlay" id="reschedule-modal">
+    <div class="modal">
+      <div class="modal-title">Reschedule</div>
+      <div class="modal-subtitle" id="reschedule-subtitle">Moving appointment for —</div>
+      <div class="modal-field">
+        <label class="modal-label">New Date</label>
+        <input type="date" class="modal-input" id="reschedule-date" />
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">New Time</label>
+        <input type="time" class="modal-input" id="reschedule-time" />
+      </div>
+      <div class="modal-actions">
+        <button class="modal-confirm" id="reschedule-confirm">Confirm Reschedule</button>
+        <button class="modal-cancel" id="reschedule-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="login-screen">
+    <div>
+      <h1>Moon</h1>
+      <p style="text-align:center;margin-top:8px">Dashboard Access</p>
+    </div>
+    <div class="login-box">
+      <input type="password" id="password-input" placeholder="Enter password..." />
+      <button id="login-btn">Enter</button>
+      <span class="login-error" id="login-error">Incorrect password</span>
+    </div>
+  </div>
+
+  <div id="dashboard">
+    <div id="reminder-banner"></div>
+
+    <header>
+      <h1>Moon — Dashboard</h1>
+      <div class="header-right">
+        <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
+        <span id="last-updated"></span>
+        <button id="logout-btn">Logout</button>
+      </div>
+    </header>
+
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="bookings">Bookings</button>
+      <button class="tab-btn" data-tab="clients">Clients</button>
+      <button class="tab-btn" data-tab="revenue">Revenue</button>
+      <button class="tab-btn" data-tab="schedule">Schedule</button>
+    </div>
+
+    <!-- ── BOOKINGS TAB ── -->
+    <div class="tab-panel active" id="tab-bookings">
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Total</div><div class="stat-value" id="stat-total">0</div></div>
+        <div class="stat"><div class="stat-label">Pending</div><div class="stat-value gold" id="stat-pending">0</div></div>
+        <div class="stat"><div class="stat-label">Confirmed</div><div class="stat-value green" id="stat-confirmed">0</div></div>
+        <div class="stat"><div class="stat-label">Completed</div><div class="stat-value red" id="stat-completed">0</div></div>
+      </div>
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="pending">Pending</button>
+        <button class="filter-btn" data-filter="confirmed">Confirmed</button>
+        <button class="filter-btn" data-filter="completed">Completed</button>
+        <button class="filter-btn" data-filter="cancelled">Cancelled</button>
+      </div>
+      <div class="bookings-container" id="bookings-list">
+        <div class="loading">Loading bookings...</div>
+      </div>
+    </div>
+
+    <!-- ── CLIENTS TAB ── -->
+    <div class="tab-panel" id="tab-clients">
+      <div class="clients-container">
+        <div class="clients-stats">
+          <div class="clients-stat"><div class="clients-stat-label">Total Clients</div><div class="clients-stat-value white" id="cl-total">0</div></div>
+          <div class="clients-stat"><div class="clients-stat-label">Regulars (3+ visits)</div><div class="clients-stat-value green" id="cl-regulars">0</div></div>
+          <div class="clients-stat"><div class="clients-stat-label">Avg Lifetime Spend</div><div class="clients-stat-value" id="cl-avg-spend">$0</div></div>
+        </div>
+        <div class="clients-search-row">
+          <input type="text" class="clients-search" id="clients-search" placeholder="Search by name or email..." />
+        </div>
+        <div id="clients-table-wrap">
+          <div class="loading">Loading clients...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REVENUE TAB ── -->
+    <div class="tab-panel" id="tab-revenue">
+      <div class="revenue-container">
+        <div class="rev-period-filter">
+          <button class="rev-period-btn active" data-period="week">This Week</button>
+          <button class="rev-period-btn" data-period="month">This Month</button>
+          <button class="rev-period-btn" data-period="year">This Year</button>
+          <button class="rev-period-btn" data-period="all">All Time</button>
+        </div>
+        <div class="revenue-stats">
+          <div class="revenue-stat"><div class="revenue-stat-label">Earned</div><div class="revenue-stat-value" id="rev-earned">$0</div></div>
+          <div class="revenue-stat"><div class="revenue-stat-label">Jobs Done</div><div class="revenue-stat-value white" id="rev-jobs">0</div></div>
+          <div class="revenue-stat"><div class="revenue-stat-label">Avg Per Job</div><div class="revenue-stat-value green" id="rev-avg">$0</div></div>
+          <div class="revenue-stat"><div class="revenue-stat-label">Best Day</div><div class="revenue-stat-value gold" id="rev-best-day">—</div></div>
+        </div>
+        <div class="chart-wrap">
+          <div class="revenue-section-title">Earnings — Last 8 Weeks</div>
+          <div class="bar-chart" id="rev-chart"></div>
+          <div class="bar-labels" id="rev-chart-labels"></div>
+        </div>
+        <div class="service-breakdown">
+          <div class="revenue-section-title">By Service</div>
+          <div id="rev-breakdown"><div class="revenue-empty">No data yet</div></div>
+        </div>
+        <div class="revenue-section-title">Log</div>
+        <div id="rev-log"><div class="revenue-empty">No completed bookings logged</div></div>
+      </div>
+    </div>
+
+    <!-- ── SCHEDULE TAB ── -->
+    <div class="tab-panel" id="tab-schedule">
+      <div class="schedule-container">
+        <div class="schedule-section-title">Weekly Hours</div>
+        <div class="schedule-grid" id="schedule-grid"><div class="loading">Loading schedule...</div></div>
+        <button class="save-schedule-btn" id="save-schedule-btn">Save Hours</button>
+        <div class="schedule-msg" id="schedule-msg"></div>
+        <div class="schedule-section-title section-gap">Closed Dates</div>
+        <div class="holidays-grid" id="holidays-grid"></div>
+        <div class="add-row">
+          <div><span class="add-input-label">Date</span><input type="date" class="add-input" id="holiday-input"/></div>
+          <button class="add-btn" id="add-holiday-btn">+ Add Closed Date</button>
+        </div>
+        <div class="schedule-section-title section-gap">Blocked Times</div>
+        <div class="blocked-grid" id="blocked-grid"></div>
+        <div class="add-row">
+          <div><span class="add-input-label">Date</span><input type="date" class="add-input" id="blocked-date"/></div>
+          <div><span class="add-input-label">From</span><input type="time" class="add-input" id="blocked-start"/></div>
+          <div><span class="add-input-label">To</span><input type="time" class="add-input" id="blocked-end"/></div>
+          <button class="add-btn" id="add-blocked-btn">+ Block Time</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { CONFIG, getBookings, saveBookings, notifyCustomer, getSchedule, saveSchedule, cleanOldBookings, getRevenueEntries, logRevenue } from '/src/booking.js';
+    import emailjs from 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/+esm';
+
+    emailjs.init(CONFIG.EMAILJS_PUBLIC_KEY);
+
+    let allBookings = [];
+    let currentFilter = 'all';
+    let currentSchedule = null;
+    let revenueEntries = [];
+    let revPeriod = 'week';
+    let rescheduleTarget = null;
+    let clientsData = [];
+
+    const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+    // ── AUTH ──
+    function handleLogin() {
+      const input = document.getElementById('password-input');
+      if (input.value === CONFIG.DASHBOARD_PASSWORD) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        loadBookings();
+        loadSchedule();
+        loadRevenue();
+        cleanOldBookings();
+        setInterval(() => loadBookings(), 30 * 60 * 1000);
+      } else {
+        document.getElementById('login-error').style.display = 'block';
+        input.value = '';
+      }
+    }
+
+    document.getElementById('login-btn').addEventListener('click', handleLogin);
+    document.getElementById('password-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+    });
+
+    // ── TABS ──
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        if (btn.dataset.tab === 'clients') renderClients();
+      });
+    });
+
+    // ── REMINDER BANNER ──
+    function checkUpcomingReminders(bookings) {
+      const now = new Date();
+      const soon = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      const banner = document.getElementById('reminder-banner');
+
+      const upcoming = bookings.filter(b => {
+        if (b.status !== 'confirmed') return false;
+        const appt = new Date(`${b.date}T${b.time}`);
+        return appt > now && appt <= soon;
+      });
+
+      if (upcoming.length === 0) { banner.style.display = 'none'; return; }
+
+      banner.style.display = 'block';
+      banner.innerHTML = `⚡ ${upcoming.length} appointment${upcoming.length > 1 ? 's' : ''} in the next 2 hours: ${upcoming.map(b => `<strong>${b.name}</strong> at ${b.time}`).join(', ')} — <span id="send-reminders-btn" style="cursor:pointer;text-decoration:underline">Send reminders</span>`;
+
+      document.getElementById('send-reminders-btn').addEventListener('click', async () => {
+        for (const b of upcoming) {
+          try {
+            await emailjs.send(CONFIG.EMAILJS_SERVICE_ID, CONFIG.EMAILJS_TEMPLATE_ID, {
+              to_name: b.name,
+              to_email: b.email,
+              service: b.service,
+              date: b.date,
+              time: b.time,
+              message: `Reminder: your appointment is coming up today at ${b.time}. See you soon!`,
+            });
+          } catch(e) { console.error('Reminder failed', e); }
+        }
+        banner.innerHTML = `✓ Reminders sent to ${upcoming.length} client${upcoming.length > 1 ? 's' : ''}`;
+      });
+    }
+
+    // ── BOOKINGS ──
+    async function loadBookings() {
+      document.getElementById('bookings-list').innerHTML = '<div class="loading">Loading bookings...</div>';
+      allBookings = await getBookings();
+      allBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      updateStats();
+      renderBookings();
+      checkUpcomingReminders(allBookings);
+      buildClientsData();
+      document.getElementById('last-updated').textContent =
+        'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    document.getElementById('refresh-btn').addEventListener('click', () => { loadBookings(); loadRevenue(); });
+
+    function updateStats() {
+      document.getElementById('stat-total').textContent = allBookings.length;
+      document.getElementById('stat-pending').textContent = allBookings.filter(b => b.status === 'pending').length;
+      document.getElementById('stat-confirmed').textContent = allBookings.filter(b => b.status === 'confirmed').length;
+      document.getElementById('stat-completed').textContent = allBookings.filter(b => b.status === 'completed').length;
+    }
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFilter = btn.dataset.filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderBookings();
+      });
+    });
+
+    function renderBookings() {
+      const list = document.getElementById('bookings-list');
+      const filtered = currentFilter === 'all' ? allBookings : allBookings.filter(b => b.status === currentFilter);
+      if (filtered.length === 0) { list.innerHTML = '<div class="empty"><p>No bookings found</p></div>'; return; }
+
+      list.innerHTML = filtered.map(b => `
+        <div class="booking-card ${b.status}">
+          <span class="status-badge ${b.status}">${b.status}</span>
+          <div>
+            <div class="booking-name">${b.name}</div>
+            <div class="booking-meta">${b.email}</div>
+          </div>
+          <div>
+            <div class="booking-service">${b.service}</div>
+            <div class="booking-meta">${b.date} at ${b.time}</div>
+          </div>
+          <div class="booking-meta">Booked ${new Date(b.createdAt).toLocaleDateString()}</div>
+          <div class="booking-actions" data-id="${b.id}">
+            ${b.status === 'pending' ? `<button class="action-btn confirm" data-action="confirmed">Confirm</button>` : ''}
+            ${b.status === 'confirmed' ? `<button class="action-btn complete" data-action="completed">Complete</button>` : ''}
+            ${b.status !== 'cancelled' && b.status !== 'completed' ? `
+              <button class="action-btn reschedule" data-action="reschedule">Reschedule</button>
+              <button class="action-btn cancel" data-action="cancelled">Cancel</button>
+            ` : ''}
+            <button class="action-btn delete" data-action="delete">Delete</button>
+          </div>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.booking-actions').forEach(actions => {
+        const id = actions.dataset.id;
+        actions.querySelectorAll('.action-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const action = btn.dataset.action;
+            const booking = allBookings.find(b => b.id === id);
+
+            if (action === 'delete') {
+              if (!confirm('Delete this booking?')) return;
+              const updated = allBookings.filter(b => b.id !== id);
+              await saveBookings(updated);
+              allBookings = updated;
+              updateStats(); renderBookings(); buildClientsData();
+
+            } else if (action === 'reschedule') {
+              openRescheduleModal(booking);
+
+            } else {
+              const updated = allBookings.map(b => b.id === id ? { ...b, status: action } : b);
+              await saveBookings(updated);
+              allBookings = updated;
+              updateStats(); renderBookings(); buildClientsData();
+              if (action === 'completed') {
+                try { await logRevenue(booking); await loadRevenue(); } catch(e) { console.error(e); }
+              }
+              try { await notifyCustomer(booking, action); } catch(e) { console.error(e); }
+            }
+          });
+        });
+      });
+    }
+
+    // ── RESCHEDULE MODAL ──
+    function openRescheduleModal(booking) {
+      rescheduleTarget = booking;
+      document.getElementById('reschedule-subtitle').textContent = `Moving appointment for ${booking.name}`;
+      document.getElementById('reschedule-date').value = booking.date;
+      document.getElementById('reschedule-time').value = booking.time;
+      document.getElementById('reschedule-modal').classList.add('open');
+    }
+
+    document.getElementById('reschedule-cancel').addEventListener('click', () => {
+      document.getElementById('reschedule-modal').classList.remove('open');
+      rescheduleTarget = null;
+    });
+
+    document.getElementById('reschedule-modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('reschedule-modal')) {
+        document.getElementById('reschedule-modal').classList.remove('open');
+        rescheduleTarget = null;
+      }
+    });
+
+    document.getElementById('reschedule-confirm').addEventListener('click', async () => {
+      if (!rescheduleTarget) return;
+      const newDate = document.getElementById('reschedule-date').value;
+      const newTime = document.getElementById('reschedule-time').value;
+      if (!newDate || !newTime) { alert('Please pick a date and time'); return; }
+
+      const updated = allBookings.map(b =>
+        b.id === rescheduleTarget.id ? { ...b, date: newDate, time: newTime, status: 'confirmed' } : b
+      );
+      await saveBookings(updated);
+      allBookings = updated;
+
+      try {
+        await emailjs.send(CONFIG.EMAILJS_SERVICE_ID, CONFIG.EMAILJS_TEMPLATE_ID, {
+          to_name: rescheduleTarget.name,
+          to_email: rescheduleTarget.email,
+          service: rescheduleTarget.service,
+          date: newDate,
+          time: newTime,
+          message: `Your appointment has been rescheduled to ${newDate} at ${newTime}. See you then!`,
+        });
+        console.log('Reschedule email sent');
+      } catch(e) {
+        console.error('Reschedule email failed:', e);
+      }
+
+      document.getElementById('reschedule-modal').classList.remove('open');
+      rescheduleTarget = null;
+      updateStats(); renderBookings(); buildClientsData();
+    });
+
+    // ── CLIENTS ──
+    function buildClientsData() {
+      const PRICES = {
+        'Brows — $10': 10, 'Beard Trim — $15': 15, 'Haircut — $35': 35,
+        'Haircut & Design — $40': 40, 'Haircut & Eyebrows — $40': 40,
+        'Haircut & Beard — $45': 45, 'Haircut, Beard & Eyebrows — $50': 50,
+        'Home Haircut Service — $60': 60,
+      };
+      const map = {};
+      allBookings.forEach(b => {
+        if (b.status === 'cancelled') return;
+        const key = b.email.toLowerCase();
+        if (!map[key]) map[key] = { name: b.name, email: b.email, visits: 0, spent: 0, lastVisit: b.date };
+        map[key].visits++;
+        if (b.status === 'completed') map[key].spent += (PRICES[b.service] || 0);
+        if (b.date > map[key].lastVisit) map[key].lastVisit = b.date;
+      });
+      clientsData = Object.values(map).sort((a, b) => b.visits - a.visits);
+
+      const total = clientsData.length;
+      const regulars = clientsData.filter(c => c.visits >= 3).length;
+      const avgSpend = total > 0 ? Math.round(clientsData.reduce((s, c) => s + c.spent, 0) / total) : 0;
+      document.getElementById('cl-total').textContent = total;
+      document.getElementById('cl-regulars').textContent = regulars;
+      document.getElementById('cl-avg-spend').textContent = `$${avgSpend}`;
+    }
+
+    function renderClients(filter = '') {
+      const wrap = document.getElementById('clients-table-wrap');
+      const filtered = filter
+        ? clientsData.filter(c => c.name.toLowerCase().includes(filter) || c.email.toLowerCase().includes(filter))
+        : clientsData;
+      if (filtered.length === 0) { wrap.innerHTML = '<div class="empty"><p>No clients found</p></div>'; return; }
+
+      const getBadge = v => {
+        if (v >= 5) return '<span class="client-badge vip">VIP</span>';
+        if (v >= 3) return '<span class="client-badge regular">Regular</span>';
+        return '<span class="client-badge new">New</span>';
+      };
+
+      wrap.innerHTML = `
+        <table class="client-table">
+          <thead>
+            <tr><th>Client</th><th>Email</th><th>Visits</th><th>Total Spent</th><th>Last Visit</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            ${filtered.map(c => `
+              <tr>
+                <td class="client-name-cell">${c.name}</td>
+                <td class="client-email-cell">${c.email}</td>
+                <td><span class="client-visits">${c.visits}</span></td>
+                <td><span class="client-spent">$${c.spent}</span></td>
+                <td class="client-last">${c.lastVisit}</td>
+                <td>${getBadge(c.visits)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    document.getElementById('clients-search').addEventListener('input', e => {
+      renderClients(e.target.value.toLowerCase());
+    });
+
+    // ── REVENUE ──
+    async function loadRevenue() {
+      revenueEntries = await getRevenueEntries();
+      renderRevenue();
+    }
+
+    function getFilteredEntries() {
+      const now = new Date();
+      return revenueEntries.filter(e => {
+        const d = new Date(e.completedAt);
+        if (revPeriod === 'week') {
+          const s = new Date(now); s.setDate(now.getDate() - now.getDay()); s.setHours(0,0,0,0);
+          return d >= s;
+        }
+        if (revPeriod === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        if (revPeriod === 'year') return d.getFullYear() === now.getFullYear();
+        return true;
+      });
+    }
+
+    function renderRevenue() {
+      const entries = getFilteredEntries();
+      const total = entries.reduce((s, e) => s + e.amount, 0);
+      const jobs = entries.length;
+      const avg = jobs > 0 ? Math.round(total / jobs) : 0;
+      const byDate = {};
+      revenueEntries.forEach(e => { byDate[e.date] = (byDate[e.date] || 0) + e.amount; });
+      const bestDay = Object.entries(byDate).sort((a,b) => b[1]-a[1])[0];
+      document.getElementById('rev-earned').textContent = `$${total}`;
+      document.getElementById('rev-jobs').textContent = jobs;
+      document.getElementById('rev-avg').textContent = `$${avg}`;
+      document.getElementById('rev-best-day').textContent = bestDay ? `$${bestDay[1]}` : '—';
+      renderChart(); renderBreakdown(entries); renderLog(entries);
+    }
+
+    function renderChart() {
+      const chart = document.getElementById('rev-chart');
+      const labelsEl = document.getElementById('rev-chart-labels');
+      const weeks = [];
+      for (let i = 7; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - d.getDay() - i * 7);
+        const start = new Date(d); start.setHours(0,0,0,0);
+        const end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23,59,59,999);
+        const earned = revenueEntries.filter(e => { const ed = new Date(e.completedAt); return ed >= start && ed <= end; }).reduce((s,e) => s + e.amount, 0);
+        weeks.push({ label: `${start.getMonth()+1}/${start.getDate()}`, earned });
+      }
+      const maxVal = Math.max(...weeks.map(w => w.earned), 1);
+      chart.innerHTML = weeks.map(w => `<div class="bar-col"><div class="bar-fill" style="height:${Math.round((w.earned/maxVal)*100)}%"><span class="bar-tooltip">$${w.earned}</span></div></div>`).join('');
+      labelsEl.innerHTML = weeks.map(w => `<div class="bar-col"><span class="bar-label">${w.label}</span></div>`).join('');
+    }
+
+    function renderBreakdown(entries) {
+      const container = document.getElementById('rev-breakdown');
+      if (entries.length === 0) { container.innerHTML = '<div class="revenue-empty">No data for this period</div>'; return; }
+      const map = {};
+      entries.forEach(e => { const n = e.service.split('—')[0].trim(); if (!map[n]) map[n]={count:0,total:0}; map[n].count++; map[n].total+=e.amount; });
+      const sorted = Object.entries(map).sort((a,b) => b[1].total-a[1].total);
+      const maxTotal = sorted[0][1].total;
+      container.innerHTML = sorted.map(([name, data]) => `
+        <div class="breakdown-row">
+          <div><div class="breakdown-service">${name}</div><div class="breakdown-bar-wrap" style="margin-top:8px"><div class="breakdown-bar" style="width:${Math.round((data.total/maxTotal)*100)}%"></div></div></div>
+          <div class="breakdown-count">${data.count}x</div>
+          <div class="breakdown-amount">$${data.total}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderLog(entries) {
+      const container = document.getElementById('rev-log');
+      if (entries.length === 0) { container.innerHTML = '<div class="revenue-empty">No completed bookings in this period</div>'; return; }
+      const sorted = [...entries].sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt));
+      container.innerHTML = `
+        <table class="revenue-log-table">
+          <thead><tr><th>Date</th><th>Client</th><th>Service</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>${sorted.map(e => `
+            <tr>
+              <td class="muted">${e.date}</td>
+              <td>${e.name}</td>
+              <td class="service-cell">${e.service.split('—')[0].trim()}</td>
+              <td class="amount" style="text-align:right">$${e.amount}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    document.querySelectorAll('.rev-period-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        revPeriod = btn.dataset.period;
+        document.querySelectorAll('.rev-period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderRevenue();
+      });
+    });
+
+    // ── SCHEDULE ──
+    async function loadSchedule() {
+      currentSchedule = await getSchedule();
+      if (!currentSchedule.blockedTimes) currentSchedule.blockedTimes = [];
+      if (!currentSchedule.closedDates) currentSchedule.closedDates = [];
+      renderSchedule();
+    }
+
+    function renderSchedule() {
+      const grid = document.getElementById('schedule-grid');
+      grid.innerHTML = Object.entries(currentSchedule.schedule).map(([day, data]) => `
+        <div class="schedule-row ${!data.open ? 'closed-day' : ''}" id="row-${day}">
+          <span class="schedule-day-name">${DAY_NAMES[day]}</span>
+          <label class="toggle-switch"><input type="checkbox" id="toggle-${day}" ${data.open ? 'checked' : ''}/><span class="toggle-slider"></span></label>
+          <div class="time-input-group"><label>Open</label><input type="time" class="time-input" id="start-${day}" value="${data.start}" ${!data.open ? 'disabled' : ''}/></div>
+          <div class="time-input-group"><label>Close</label><input type="time" class="time-input" id="end-${day}" value="${data.end}" ${!data.open ? 'disabled' : ''}/></div>
+        </div>
+      `).join('');
+
+      for (let day = 0; day <= 6; day++) {
+        const toggle = document.getElementById(`toggle-${day}`);
+        if (toggle) toggle.addEventListener('change', () => {
+          const open = toggle.checked;
+          document.getElementById(`start-${day}`).disabled = !open;
+          document.getElementById(`end-${day}`).disabled = !open;
+          document.getElementById(`row-${day}`).classList.toggle('closed-day', !open);
+        });
+      }
+      renderHolidays(); renderBlocked();
+    }
+
+    document.getElementById('save-schedule-btn').addEventListener('click', async () => {
+      const msg = document.getElementById('schedule-msg');
+      const updated = JSON.parse(JSON.stringify(currentSchedule));
+      for (let day = 0; day <= 6; day++) {
+        updated.schedule[day] = {
+          open: document.getElementById(`toggle-${day}`).checked,
+          start: document.getElementById(`start-${day}`).value,
+          end: document.getElementById(`end-${day}`).value,
+        };
+      }
+      try {
+        await saveSchedule(updated); currentSchedule = updated;
+        msg.className = 'schedule-msg success'; msg.textContent = '✓ Schedule saved successfully';
+        setTimeout(() => msg.textContent = '', 3000);
+      } catch(e) { msg.className = 'schedule-msg error'; msg.textContent = '— Failed to save schedule'; }
+    });
+
+    function renderHolidays() {
+      const grid = document.getElementById('holidays-grid');
+      const dates = currentSchedule.closedDates || [];
+      if (dates.length === 0) { grid.innerHTML = '<span style="font-size:11px;letter-spacing:2px;color:var(--muted)">No closed dates set</span>'; return; }
+      grid.innerHTML = dates.sort().map(d => `<div class="holiday-tag"><span>${d}</span><button class="holiday-remove" data-date="${d}">×</button></div>`).join('');
+      grid.querySelectorAll('.holiday-remove').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const updated = JSON.parse(JSON.stringify(currentSchedule));
+          updated.closedDates = updated.closedDates.filter(d => d !== btn.dataset.date);
+          await saveSchedule(updated); currentSchedule = updated; renderHolidays();
+        });
+      });
+    }
+
+    document.getElementById('add-holiday-btn').addEventListener('click', async () => {
+      const input = document.getElementById('holiday-input'); const date = input.value;
+      if (!date) return;
+      const updated = JSON.parse(JSON.stringify(currentSchedule));
+      if (!updated.closedDates) updated.closedDates = [];
+      if (updated.closedDates.includes(date)) return;
+      updated.closedDates.push(date);
+      await saveSchedule(updated); currentSchedule = updated; input.value = ''; renderHolidays();
+    });
+
+    function renderBlocked() {
+      const grid = document.getElementById('blocked-grid');
+      const blocks = currentSchedule.blockedTimes || [];
+      if (blocks.length === 0) { grid.innerHTML = '<span style="font-size:11px;letter-spacing:2px;color:var(--muted)">No blocked times set</span>'; return; }
+      grid.innerHTML = blocks.sort((a,b) => a.date.localeCompare(b.date)||a.start.localeCompare(b.start)).map((b,i) => `
+        <div class="blocked-tag"><span>${b.date} &nbsp;${b.start} – ${b.end}</span><button class="blocked-remove" data-index="${i}">×</button></div>
+      `).join('');
+      grid.querySelectorAll('.blocked-remove').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const updated = JSON.parse(JSON.stringify(currentSchedule));
+          updated.blockedTimes.splice(Number(btn.dataset.index), 1);
+          await saveSchedule(updated); currentSchedule = updated; renderBlocked();
+        });
+      });
+    }
+
+    document.getElementById('add-blocked-btn').addEventListener('click', async () => {
+      const date = document.getElementById('blocked-date').value;
+      const start = document.getElementById('blocked-start').value;
+      const end = document.getElementById('blocked-end').value;
+      if (!date || !start || !end) { alert('Please fill in date, start time and end time'); return; }
+      if (start >= end) { alert('End time must be after start time'); return; }
+      const updated = JSON.parse(JSON.stringify(currentSchedule));
+      if (!updated.blockedTimes) updated.blockedTimes = [];
+      updated.blockedTimes.push({ date, start, end });
+      await saveSchedule(updated); currentSchedule = updated;
+      document.getElementById('blocked-date').value = '';
+      document.getElementById('blocked-start').value = '';
+      document.getElementById('blocked-end').value = '';
+      renderBlocked();
+    });
+
+  </script>
+</body>
+</html>
