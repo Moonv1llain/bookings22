@@ -1,16 +1,17 @@
 import { defineConfig } from 'vite'
+import { resolve } from 'path'
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        dashboard: resolve(__dirname, 'dashboard.html'),
+      }
+    }
+  },
   server: {
     host: '0.0.0.0',
     allowedHosts: 'all',
-    proxy: {
-      '/jsonbin': {
-        target: 'https://api.jsonbin.io',
-        changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path.replace(/^\/jsonbin/, '')
-      }
-    }
   }
 })
